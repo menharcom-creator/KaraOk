@@ -1,0 +1,15 @@
+{
+  "songs": [
+    {
+      "id": "song001",
+      "title": "Sample Karaoke Song",
+      "artist": "Sample Artist",
+      "category": "OPM",
+      "featured": true,
+      "videoUrl": "songs/sample-song.mp4",
+      "thumbnailUrl": "thumbnails/sample-song.jpg",
+      "lyricsUrl": "lyrics/sample-song.lrc",
+      "duration": 240
+    }
+  ]
+}
