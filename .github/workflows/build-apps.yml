@@ -1,0 +1,43 @@
+name: Build APK (phone + Android TV) and unsigned IPA
+on: workflow_dispatch
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Build APK
+        run: |
+          mkdir www && cp index.html style.css app.js songs.json manifest.json sw.js www/
+          npm init -y
+          npm i @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Karaoke Hub" com.menhar.karaoke --web-dir www
+          npx cap add android
+          M=android/app/src/main/AndroidManifest.xml
+          # Android TV: show in TV launcher, don't require touchscreen
+          sed -i 's|<category android:name="android.intent.category.LAUNCHER" />|&\n<category android:name="android.intent.category.LEANBACK_LAUNCHER" />|' $M
+          sed -i 's|<application|<uses-feature android:name="android.hardware.touchscreen" android:required="false" />\n<uses-feature android:name="android.software.leanback" android:required="false" />\n<application|' $M
+          npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with: { name: karaoke-apk, path: android/app/build/outputs/apk/debug/app-debug.apk }
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Build unsigned IPA
+        run: |
+          mkdir www && cp index.html style.css app.js songs.json manifest.json sw.js www/
+          npm init -y
+          npm i @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init "Karaoke Hub" com.menhar.karaoke --web-dir www
+          npx cap add ios && npx cap sync ios
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          mkdir Payload && cp -R build/Build/Products/Release-iphoneos/App.app Payload/ && zip -r karaoke-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with: { name: karaoke-ipa-unsigned, path: karaoke-unsigned.ipa }
